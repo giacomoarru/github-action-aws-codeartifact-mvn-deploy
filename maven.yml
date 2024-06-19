@@ -1,0 +1,41 @@
+# This workflow will build a Java project with Maven, and deploy the artifact to a AWS CodeArtifact repository
+
+
+name: Deploy to AWS CodeArtifact
+
+on:
+  push:
+    branches: [ "mainline" ]
+  pull_request:
+    branches: [ "mainline" ]
+
+env:
+  AWS_EC2_METADATA_DISABLED: true
+  AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  CODEARTIFACT_USERNAME: ${{ secrets.CODEARTIFACT_USERNAME }}
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Login to AWS CodeArtifact
+      run: |
+        TOKEN=$(aws codeartifact get-authorization-token --region ${{ vars.CODEARTIFACT_AWS_REGION }} --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ vars.CODEARTIFACT_DOMAIN_OWNER }} --query authorizationToken --output text)
+        echo "CODEARTIFACT_AUTH_TOKEN=$TOKEN" >> $GITHUB_ENV
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+        server-id: x2x-x2x
+        server-username: CODEARTIFACT_USERNAME
+        server-password: CODEARTIFACT_AUTH_TOKEN
+    - name: Deploy with Maven
+      run: mvn -B deploy --file pom.xml
